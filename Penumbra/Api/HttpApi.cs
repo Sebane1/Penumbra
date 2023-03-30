@@ -119,11 +119,8 @@ public class HttpApi : IDisposable
             // AddMod returns Success if the mod is already loaded.
             if( data.Path.Length != 0 )
             {
-                _api.AddMod( data.Path );
+                _api.UnpackMod( data.Path );
             }
-
-            // Reload the mod by path or name, which will also remove no-longer existing mods.
-           // _api.ReloadMod( data.Path, data.Name );
         }
 
         private record ModReloadData( string Path, string Name )

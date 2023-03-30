@@ -3,6 +3,7 @@ using System.Numerics;
 using ImGuiNET;
 using OtterGui;
 using OtterGui.Raii;
+using Penumbra.Import.Structs;
 using Penumbra.UI.Classes;
 
 namespace Penumbra.Import;
@@ -93,12 +94,12 @@ public partial class TexToolsImporter
             ImGui.TableNextColumn();
             if( ex == null )
             {
-                using var color = ImRaii.PushColor( ImGuiCol.Text, ColorId.FolderExpanded.Value() );
+                using var color = ImRaii.PushColor( ImGuiCol.Text, ColorId.FolderExpanded.Value(Penumbra.Config) );
                 ImGui.TextUnformatted( dir?.FullName[ ( _baseDirectory.FullName.Length + 1 ).. ] ?? "Unknown Directory" );
             }
             else
             {
-                using var color = ImRaii.PushColor( ImGuiCol.Text, ColorId.ConflictingMod.Value() );
+                using var color = ImRaii.PushColor( ImGuiCol.Text, ColorId.ConflictingMod.Value(Penumbra.Config) );
                 ImGui.TextUnformatted( ex.Message );
                 ImGuiUtil.HoverTooltip( ex.ToString() );
             }

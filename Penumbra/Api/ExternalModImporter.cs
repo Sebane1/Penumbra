@@ -15,7 +15,7 @@ namespace Penumbra.Api {
 
         public static void UnpackMod( string modPackagePath )
         {
-            modFileSystemSelectorInstance.AddStandaloneMod( modPackagePath );
+            modFileSystemSelectorInstance.ImportStandaloneModPackage( modPackagePath );
         }
     }
 }

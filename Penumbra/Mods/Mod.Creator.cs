@@ -4,13 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Dalamud.Utility;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using OtterGui.Classes;
 using OtterGui.Filesystem;
 using Penumbra.Api.Enums;
-using Penumbra.Import;
+using Penumbra.Import.Structs;
 using Penumbra.String.Classes;
 
 namespace Penumbra.Mods;
@@ -64,19 +62,6 @@ public partial class Mod
             return newModFolder.Length == 0 ? null : new DirectoryInfo( newModFolder );
         }
 
-        /// <summary> Create the file containing the meta information about a mod from scratch. </summary>
-        public static void CreateMeta( DirectoryInfo directory, string? name, string? author, string? description, string? version,
-            string? website )
-        {
-            var mod = new Mod( directory );
-            mod.Name        = name.IsNullOrEmpty() ? mod.Name : new LowerString( name! );
-            mod.Author      = author != null ? new LowerString( author ) : mod.Author;
-            mod.Description = description ?? mod.Description;
-            mod.Version     = version     ?? mod.Version;
-            mod.Website     = website     ?? mod.Website;
-            mod.SaveMetaFile(); // Not delayed.
-        }
-
         /// <summary> Create a file for an option group from given data. </summary>
         public static void CreateOptionGroup( DirectoryInfo baseFolder, GroupType type, string name,
             int priority, int index, uint defaultSettings, string desc, IEnumerable< ISubMod > subMods )
@@ -93,7 +78,7 @@ public partial class Mod
                         DefaultSettings = defaultSettings,
                     };
                     group.PrioritizedOptions.AddRange( subMods.OfType< SubMod >().Select( ( s, idx ) => ( s, idx ) ) );
-                    IModGroup.Save( group, baseFolder, index );
+                    Penumbra.SaveService.ImmediateSave(new ModSaveGroup(baseFolder, group, index));
                     break;
                 }
                 case GroupType.Single:
@@ -106,7 +91,7 @@ public partial class Mod
                         DefaultSettings = defaultSettings,
                     };
                     group.OptionData.AddRange( subMods.OfType< SubMod >() );
-                    IModGroup.Save( group, baseFolder, index );
+                    Penumbra.SaveService.ImmediateSave(new ModSaveGroup(baseFolder, group, index));
                     break;
                 }
             }
@@ -147,17 +132,15 @@ public partial class Mod
         internal static void CreateDefaultFiles( DirectoryInfo directory )
         {
             var mod = new Mod( directory );
-            mod.Reload( false, out _ );
+            mod.Reload( Penumbra.ModManager, false, out _ );
             foreach( var file in mod.FindUnusedFiles() )
             {
                 if( Utf8GamePath.FromFile( new FileInfo( file.FullName ), directory, out var gamePath, true ) )
-                {
                     mod._default.FileData.TryAdd( gamePath, file );
-                }
             }
 
             mod._default.IncorporateMetaChanges( directory, true );
-            mod.SaveDefaultMod();
+            Penumbra.SaveService.ImmediateSave(new ModSaveGroup(mod, -1));
         }
 
         /// <summary> Return the name of a new valid directory based on the base directory and the given name. </summary>

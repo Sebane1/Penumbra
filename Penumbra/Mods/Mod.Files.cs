@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
-using OtterGui;
 using Penumbra.Api.Enums;
 using Penumbra.Meta.Manipulations;
 using Penumbra.String.Classes;
@@ -18,15 +17,15 @@ public partial class Mod
     public IReadOnlyList< IModGroup > Groups
         => _groups;
 
-    private readonly SubMod            _default;
-    private readonly List< IModGroup > _groups  = new();
+    internal readonly SubMod            _default;
+    internal readonly List< IModGroup > _groups  = new();
 
-    public int TotalFileCount { get; private set; }
-    public int TotalSwapCount { get; private set; }
-    public int TotalManipulations { get; private set; }
-    public bool HasOptions { get; private set; }
+    public int TotalFileCount { get; internal set; }
+    public int TotalSwapCount { get; internal set; }
+    public int TotalManipulations { get; internal set; }
+    public bool HasOptions { get; internal set; }
 
-    private bool SetCounts()
+    internal bool SetCounts()
     {
         TotalFileCount     = 0;
         TotalSwapCount     = 0;
@@ -103,7 +102,7 @@ public partial class Mod
             var group = LoadModGroup( this, file, _groups.Count );
             if( group != null && _groups.All( g => g.Name != group.Name ) )
             {
-                changes = changes || group.FileName( ModPath, _groups.Count ) != file.FullName;
+                changes = changes || Penumbra.Filenames.OptionGroupFile(ModPath.FullName, Groups.Count, group.Name) != file.FullName;
                 _groups.Add( group );
             }
             else
@@ -113,33 +112,59 @@ public partial class Mod
         }
 
         if( changes )
+            Penumbra.SaveService.SaveAllOptionGroups(this);
+    }
+
+    private void LoadDefaultOption()
+    {
+        var defaultFile = Penumbra.Filenames.OptionGroupFile(this, -1);
+        _default.SetPosition(-1, 0);
+        try
         {
-            SaveAllGroups();
+            if (!File.Exists(defaultFile))
+            {
+                _default.Load(ModPath, new JObject(), out _);
+            }
+            else
+            {
+                _default.Load(ModPath, JObject.Parse(File.ReadAllText(defaultFile)), out _);
+            }
+        }
+        catch (Exception e)
+        {
+            Penumbra.Log.Error($"Could not parse default file for {Name}:\n{e}");
         }
     }
 
-    // Delete all existing group files and save them anew.
-    // Used when indices change in complex ways.
-    private void SaveAllGroups()
+    public void WriteAllTexToolsMeta()
     {
-        foreach( var file in GroupFiles )
+        try
         {
-            try
+            _default.WriteTexToolsMeta(ModPath);
+            foreach (var group in Groups)
             {
-                if( file.Exists )
+                var dir = Creator.NewOptionDirectory(ModPath, group.Name);
+                if (!dir.Exists)
                 {
-                    file.Delete();
+                    dir.Create();
+                }
+
+                foreach (var option in group.OfType<SubMod>())
+                {
+                    var optionDir = Creator.NewOptionDirectory(dir, option.Name);
+                    if (!optionDir.Exists)
+                    {
+                        optionDir.Create();
+                    }
+
+                    option.WriteTexToolsMeta(optionDir);
                 }
             }
-            catch( Exception e )
-            {
-                Penumbra.Log.Error( $"Could not delete outdated group file {file}:\n{e}" );
-            }
         }
-
-        foreach( var (group, index) in _groups.WithIndex() )
+        catch (Exception e)
         {
-            IModGroup.Save( group, ModPath, index );
+            Penumbra.Log.Error($"Error writing TexToolsMeta:\n{e}");
         }
     }
+
 }
