@@ -21,7 +21,6 @@ using Penumbra.Interop.ResourceLoading;
 using Penumbra.String;
 using Penumbra.String.Classes;
 using Penumbra.Services;
-using Penumbra.Import;
 
 namespace Penumbra.Api;
 
@@ -91,16 +90,35 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         => _penumbra != null;
 
     private CommunicatorService _communicator;
-    private Penumbra _penumbra;
-    private Lumina.GameData? _lumina;
+    private Penumbra            _penumbra;
+    private Lumina.GameData?    _lumina;
 
+    private ModManager           _modManager;
+    private ResourceLoader        _resourceLoader;
+    private Configuration         _config;
     private CollectionManager _collectionManager;
+    private DalamudServices       _dalamud;
     private TempCollectionManager _tempCollections;
+    private TempModManager        _tempMods;
+    private ActorService          _actors;
+    private CollectionResolver    _collectionResolver;
+    private CutsceneService       _cutsceneService;
 
     public unsafe PenumbraApi(CommunicatorService communicator, Penumbra penumbra, ModManager modManager, ResourceLoader resourceLoader,
         Configuration config, CollectionManager collectionManager, DalamudServices dalamud, TempCollectionManager tempCollections,
         TempModManager tempMods, ActorService actors, CollectionResolver collectionResolver, CutsceneService cutsceneService)
     {
+        _communicator         = communicator;
+        _penumbra             = penumbra;
+        _modManager           = modManager;
+        _resourceLoader       = resourceLoader;
+        _config               = config;
+        _collectionManager    = collectionManager;
+        _dalamud              = dalamud;
+        _tempCollections      = tempCollections;
+        _tempMods             = tempMods;
+        _actors               = actors;
+        _collectionResolver   = collectionResolver;
         _cutsceneService = cutsceneService;
 
         _lumina = (Lumina.GameData?)_dalamud.GameData.GetType()
@@ -110,56 +128,37 @@ public class PenumbraApi : IDisposable, IPenumbraApi
             SubscribeToCollection(collection);
 
         _communicator.CollectionChange.Event += SubscribeToNewCollections;
-    private ModManager _modManager;
-    private ResourceLoader _resourceLoader;
-    private Configuration _config;
-    private DalamudServices _dalamud;
-    private TempModManager _tempMods;
-    private ActorService _actors;
-    private CollectionResolver _collectionResolver;
-    private CutsceneService _cutsceneService;
-        _communicator = communicator;
-        _penumbra = penumbra;
-        _modManager = modManager;
-        _resourceLoader = resourceLoader;
-        _config = config;
-        _collectionManager = collectionManager;
-        _dalamud = dalamud;
-        _tempCollections = tempCollections;
-        _tempMods = tempMods;
-        _actors = actors;
-        _collectionResolver = collectionResolver;
-        _resourceLoader.ResourceLoaded += OnResourceLoaded;
-        _modManager.ModPathChanged += ModPathChangeSubscriber;
+        _resourceLoader.ResourceLoaded       += OnResourceLoaded;
+        _modManager.ModPathChanged           += ModPathChangeSubscriber;
     }
 
     public unsafe void Dispose()
     {
         if (!Valid)
+            return;
 
         foreach (var collection in _collectionManager)
-            return;
         {
             if (_delegates.TryGetValue(collection, out var del))
                 collection.ModSettingChanged -= del;
         }
 
+        _resourceLoader.ResourceLoaded       -= OnResourceLoaded;
         _communicator.CollectionChange.Event -= SubscribeToNewCollections;
-        _resourceLoader.ResourceLoaded -= OnResourceLoaded;
-        _modManager.ModPathChanged -= ModPathChangeSubscriber;
-        _lumina = null;
-        _communicator = null!;
-        _penumbra = null!;
-        _modManager = null!;
-        _resourceLoader = null!;
-        _config = null!;
-        _collectionManager = null!;
-        _dalamud = null!;
-        _tempCollections = null!;
-        _tempMods = null!;
-        _actors = null!;
-        _collectionResolver = null!;
-        _cutsceneService = null!;
+        _modManager.ModPathChanged           -= ModPathChangeSubscriber;
+        _lumina                              =  null;
+        _communicator                        =  null!;
+        _penumbra                            =  null!;
+        _modManager                          =  null!;
+        _resourceLoader                      =  null!;
+        _config                              =  null!;
+        _collectionManager                   =  null!;
+        _dalamud                             =  null!;
+        _tempCollections                     =  null!;
+        _tempMods                            =  null!;
+        _actors                              =  null!;
+        _collectionResolver                  =  null!;
+        _cutsceneService                     =  null!;
     }
 
     public event ChangedItemClick? ChangedItemClicked;
@@ -215,7 +214,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return JsonConvert.SerializeObject(_config, Formatting.Indented);
     }
 
-    public event ChangedItemHover? ChangedItemTooltip;
+    public event ChangedItemHover?                   ChangedItemTooltip;
     public event GameObjectResourceResolvedDelegate? GameObjectResourceResolved;
 
     public PenumbraApiEc OpenMainWindow(TabType tab, string modDirectory, string modName)
@@ -366,9 +365,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
             }).ToArray());
 
         var playerCollection = _collectionResolver.PlayerCollection();
+        var resolved         = forward.Select(p => ResolvePath(p, _modManager, playerCollection)).ToArray();
+        var reverseResolved  = playerCollection.ReverseResolvePaths(reverse);
         return (resolved, reverseResolved.Select(a => a.Select(p => p.ToString()).ToArray()).ToArray());
-        var resolved = forward.Select(p => ResolvePath(p, _modManager, playerCollection)).ToArray();
-        var reverseResolved = playerCollection.ReverseResolvePaths(reverse);
     }
 
     public T? GetFile<T>(string gamePath) where T : FileResource
@@ -543,9 +542,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
 
     public unsafe (nint, string) GetDrawObjectInfo(nint drawObject)
     {
-        return (data.AssociatedGameObject, data.ModCollection.Name);
         CheckInitialized();
-        var data = _collectionResolver.IdentifyCollection((DrawObject*)drawObject, true);
+        var data = _collectionResolver.IdentifyCollection((DrawObject*) drawObject, true);
+        return (data.AssociatedGameObject, data.ModCollection.Name);
     }
 
     public int GetCutsceneParentIndex(int actorIdx)
@@ -597,19 +596,6 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return PenumbraApiEc.Success;
     }
 
-    public PenumbraApiEc UnpackMod(string modPackagePath)
-    {
-        if (File.Exists(modPackagePath))
-        {
-            ExternalModImporter.UnpackMod(modPackagePath);
-            return PenumbraApiEc.Success;
-        }
-        else
-        {
-            return PenumbraApiEc.FileMissing;
-        }
-    }
-
     public PenumbraApiEc AddMod(string modDirectory)
     {
         CheckInitialized();
@@ -631,9 +617,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return PenumbraApiEc.Success;
     }
 
+    public event Action<string>?         ModDeleted;
+    public event Action<string>?         ModAdded;
     public event Action<string, string>? ModMoved;
-    public event Action<string>? ModDeleted;
-    public event Action<string>? ModAdded;
 
     private void ModPathChangeSubscriber(ModPathChangeType type, Mod mod, DirectoryInfo? oldDirectory,
         DirectoryInfo? newDirectory)
@@ -823,9 +809,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
             return (PenumbraApiEc.CharacterCollectionExists, string.Empty);
 
         var name = $"{tag}_{character}";
+        var ret  = CreateNamedTemporaryCollection(name);
         if (ret != PenumbraApiEc.Success)
             return (ret, name);
-        var ret = CreateNamedTemporaryCollection(name);
 
         if (_tempCollections.AddIdentifier(name, identifier))
             return (PenumbraApiEc.Success, name);
@@ -907,7 +893,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return _tempMods.Register(tag, null, p, m, priority) switch
         {
             RedirectResult.Success => PenumbraApiEc.Success,
-            _ => PenumbraApiEc.UnknownError,
+            _                      => PenumbraApiEc.UnknownError,
         };
     }
 
@@ -928,7 +914,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return _tempMods.Register(tag, collection, p, m, priority) switch
         {
             RedirectResult.Success => PenumbraApiEc.Success,
-            _ => PenumbraApiEc.UnknownError,
+            _                      => PenumbraApiEc.UnknownError,
         };
     }
 
@@ -937,9 +923,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         CheckInitialized();
         return _tempMods.Unregister(tag, null, priority) switch
         {
-            RedirectResult.Success => PenumbraApiEc.Success,
+            RedirectResult.Success       => PenumbraApiEc.Success,
             RedirectResult.NotRegistered => PenumbraApiEc.NothingChanged,
-            _ => PenumbraApiEc.UnknownError,
+            _                            => PenumbraApiEc.UnknownError,
         };
     }
 
@@ -952,9 +938,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
 
         return _tempMods.Unregister(tag, collection, priority) switch
         {
-            RedirectResult.Success => PenumbraApiEc.Success,
+            RedirectResult.Success       => PenumbraApiEc.Success,
             RedirectResult.NotRegistered => PenumbraApiEc.NothingChanged,
-            _ => PenumbraApiEc.UnknownError,
+            _                            => PenumbraApiEc.UnknownError,
         };
     }
 
@@ -962,8 +948,8 @@ public class PenumbraApi : IDisposable, IPenumbraApi
     {
         CheckInitialized();
         var collection = _collectionResolver.PlayerCollection();
+        var set        = collection.MetaCache?.Manipulations.ToArray() ?? Array.Empty<MetaManipulation>();
         return Functions.ToCompressedBase64(set, MetaManipulation.CurrentVersion);
-        var set = collection.MetaCache?.Manipulations.ToArray() ?? Array.Empty<MetaManipulation>();
     }
 
     // TODO: cleanup when incrementing API
@@ -1015,9 +1001,9 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         if (gameObjectIdx < 0 || gameObjectIdx >= _dalamud.Objects.Length)
             return false;
 
+        var ptr  = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)_dalamud.Objects.GetObjectAddress(gameObjectIdx);
         var data = _collectionResolver.IdentifyCollection(ptr, false);
         if (data.Valid)
-        var ptr = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)_dalamud.Objects.GetObjectAddress(gameObjectIdx);
             collection = data.ModCollection;
 
         return true;
@@ -1041,7 +1027,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
             return path;
 
         var gamePath = Utf8GamePath.FromString(path, out var p, true) ? p : Utf8GamePath.Empty;
-        var ret = collection.ResolvePath(gamePath);
+        var ret      = collection.ResolvePath(gamePath);
         return ret?.ToString() ?? path;
     }
 
@@ -1127,7 +1113,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         void Del(ModSettingChange type, int idx, int _, int _2, bool inherited)
             => ModSettingChanged?.Invoke(type, name, idx >= 0 ? _modManager[idx].ModPath.Name : string.Empty, inherited);
 
-        _delegates[c] = Del;
+        _delegates[c]       =  Del;
         c.ModSettingChanged += Del;
     }
 
@@ -1159,5 +1145,17 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         var b = ByteString.FromStringUnsafe(name, false);
         return _actors.AwaitedService.CreatePlayer(b, worldId);
     }
-}
 
+    public PenumbraApiEc UnpackMod(string modpackFile)
+    {
+        if (File.Exists(modpackFile))
+        {
+            ExternalModImporter.ModFileSystemSelectorInstance.ImportStandaloneModPackage(modpackFile);
+            return PenumbraApiEc.Success;
+        }
+        else
+        {
+            return PenumbraApiEc.FileMissing;
+        }
+    }
+}
