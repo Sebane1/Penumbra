@@ -14,6 +14,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Penumbra.Api.Enums;
+using Penumbra.Api;
+using System.Collections.Generic;
 
 namespace Penumbra.UI.Classes;
 
@@ -47,6 +49,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector< Mod, Mod
         Penumbra.ModManager.ModDataChanged                    += OnModDataChange;
         Penumbra.ModManager.ModDiscoveryStarted               += StoreCurrentSelection;
         Penumbra.ModManager.ModDiscoveryFinished              += RestoreLastSelection;
+        ExternalModImporter.ModFileSystemSelectorInstance = this;
         OnCollectionChange( CollectionType.Current, null, Penumbra.CollectionManager.Current, "" );
     }
 
@@ -231,6 +234,20 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector< Mod, Mod
                     ImGui.OpenPopup( "Import Status" );
                 }
             }, 0, modPath );
+    }
+
+    /// <summary>
+    /// Unpacks the specified standalone package
+    /// </summary>
+    /// <param name="modPackagePath">The package to unpack</param>
+    public void AddStandaloneMod(string modPackagePath)
+    {
+        var modPath = _hasSetFolder && !Penumbra.Config.AlwaysOpenDefaultImport ? null
+    : Penumbra.Config.DefaultModImportPath.Length > 0 ? Penumbra.Config.DefaultModImportPath
+    : Penumbra.Config.ModDirectory.Length > 0 ? Penumbra.Config.ModDirectory : null;
+      _hasSetFolder = true;
+      _import = new TexToolsImporter( Penumbra.ModManager.BasePath, 1, new List<FileInfo>() { new FileInfo( modPackagePath ) }, AddNewMod );
+      ImGui.OpenPopup( "Import Status" );
     }
 
     // Draw the progress information for import.
