@@ -585,6 +585,18 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         return (PenumbraApiEc.Success,
             (shareSettings.Enabled, shareSettings.Priority, shareSettings.Settings, collection.Settings[mod.Index] != null));
     }
+    public PenumbraApiEc UnpackMod(string modpackFile)
+    {
+        if (File.Exists(modpackFile))
+        {
+            ExternalModImporter.ModFileSystemSelectorInstance.ImportStandaloneModPackage(modpackFile);
+            return PenumbraApiEc.Success;
+        }
+        else
+        {
+            return PenumbraApiEc.FileMissing;
+        }
+    }
 
     public PenumbraApiEc ReloadMod(string modDirectory, string modName)
     {
@@ -1144,18 +1156,5 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         // Verified to be valid name beforehand.
         var b = ByteString.FromStringUnsafe(name, false);
         return _actors.AwaitedService.CreatePlayer(b, worldId);
-    }
-
-    public PenumbraApiEc UnpackMod(string modpackFile)
-    {
-        if (File.Exists(modpackFile))
-        {
-            ExternalModImporter.ModFileSystemSelectorInstance.ImportStandaloneModPackage(modpackFile);
-            return PenumbraApiEc.Success;
-        }
-        else
-        {
-            return PenumbraApiEc.FileMissing;
-        }
     }
 }
