@@ -18,6 +18,7 @@ using Penumbra.Api.Enums;
 using Penumbra.GameData.Actors;
 using Penumbra.String;
 using Penumbra.String.Classes;
+using Penumbra.Import;
 
 namespace Penumbra.Api;
 
@@ -592,6 +593,18 @@ public class PenumbraApi : IDisposable, IPenumbraApi
 
         Penumbra.ModManager.ReloadMod( mod.Index );
         return PenumbraApiEc.Success;
+    }
+
+    public PenumbraApiEc UnpackMod( string modPackagePath ) {
+        if( File.Exists( modPackagePath ) )
+        {
+            ExternalModImporter.UnpackMod( modPackagePath );
+            return PenumbraApiEc.Success;
+        }
+        else
+        {
+            return PenumbraApiEc.FileMissing;
+        }
     }
 
     public PenumbraApiEc AddMod( string modDirectory )
@@ -1230,4 +1243,6 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         var b = ByteString.FromStringUnsafe( name, false );
         return Penumbra.Actors.CreatePlayer( b, worldId );
     }
+
+
 }
