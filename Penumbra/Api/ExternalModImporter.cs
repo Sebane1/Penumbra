@@ -9,13 +9,13 @@ using System.Linq;
 
 namespace Penumbra.Api {
     public class ExternalModImporter {
-        private static ModFileSystemSelector instance;
+        private static ModFileSystemSelector modFileSystemSelectorInstance;
 
-        public static ModFileSystemSelector Instance { get => instance; set => instance = value; }
+        public static ModFileSystemSelector ModFileSystemSelectorInstance { get => modFileSystemSelectorInstance; set => modFileSystemSelectorInstance = value; }
 
         public static void UnpackMod( string modPackagePath )
         {
-            instance.AddStandaloneMod( modPackagePath );
+            modFileSystemSelectorInstance.AddStandaloneMod( modPackagePath );
         }
     }
 }
