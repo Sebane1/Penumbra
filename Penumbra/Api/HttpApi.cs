@@ -16,6 +16,7 @@ public class HttpApi : IDisposable
         [Route( HttpVerbs.Post, "/redraw"    )] public partial Task    Redraw();
         [Route( HttpVerbs.Post, "/redrawAll" )] public partial void    RedrawAll();
         [Route( HttpVerbs.Post, "/reloadmod" )] public partial Task    ReloadMod();
+        [Route( HttpVerbs.Post, "/unpackmod" )] public partial Task    UnpackMod();
         // @formatter:on
     }
 
@@ -110,12 +111,31 @@ public class HttpApi : IDisposable
             // Reload the mod by path or name, which will also remove no-longer existing mods.
             _api.ReloadMod( data.Path, data.Name );
         }
+        public async partial Task UnpackMod()
+        {
+            var data = await HttpContext.GetRequestDataAsync< ModUnpackData >();
+            Penumbra.Log.Debug( $"[HTTP] {nameof( UnpackMod )} triggered with {data}." );
+            // Add the mod if it is not already loaded and if the directory name is given.
+            // AddMod returns Success if the mod is already loaded.
+            if( data.Path.Length != 0 )
+            {
+                _api.AddMod( data.Path );
+            }
+
+            // Reload the mod by path or name, which will also remove no-longer existing mods.
+           // _api.ReloadMod( data.Path, data.Name );
+        }
 
         private record ModReloadData( string Path, string Name )
         {
             public ModReloadData()
                 : this( string.Empty, string.Empty )
             { }
+        }
+        private record ModUnpackData( string Path)
+        {
+            public ModUnpackData()
+                : this( string.Empty) { }
         }
 
         private record RedrawData( string Name, RedrawType Type, int ObjectTableIndex )
