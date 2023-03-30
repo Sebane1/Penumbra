@@ -76,7 +76,6 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         AddButton(AddImportModButton, 1);
         AddButton(AddHelpButton,      2);
         AddButton(DeleteModButton,    1000);
-        AddButton(AddImportListener, 0);
         // @formatter:on
         SetFilterTooltip();
 
@@ -232,6 +231,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
     private void AddImportModButton(Vector2 size)
     {
         _infoPopupId = ImGui.GetID("Import Status");
+        ImportListener();
         var button = ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.FileImport.ToIconString(), size,
             "Import one or multiple mods from Tex Tools Mod Pack Files or Penumbra Mod Pack Files.", !Penumbra.ModManager.Valid, true);
         _tutorial.OpenTutorial(BasicTutorialSteps.ModImport);
@@ -254,9 +254,8 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
             }, 0, modPath, _config.AlwaysOpenDefaultImport);
     }
 
-    private void AddImportListener(Vector2 size)
+    private void ImportListener()
     {
-        _infoPopupId = ImGui.GetID("Import Status");
         if (_modUnpackQueue.Count > 0)
         {
             string modPackagePath = _modUnpackQueue.Dequeue();
