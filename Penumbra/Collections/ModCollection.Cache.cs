@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using Penumbra.Api.Enums;
 using Penumbra.String.Classes;
+using Penumbra.Mods.Manager;
 
 namespace Penumbra.Collections;
 
@@ -321,7 +322,7 @@ internal class ModCollectionCache : IDisposable
         if( addMetaChanges )
         {
             ++_collection.ChangeCounter;
-            if( mod.TotalManipulations > 0 )
+            if(Penumbra.ModCaches[mod.Index].TotalManipulations > 0 )
             {
                 AddMetaFiles();
             }
@@ -533,7 +534,7 @@ internal class ModCollectionCache : IDisposable
 
             foreach( var (manip, mod) in MetaManipulations )
             {
-                Mod.ComputeChangedItems( items, manip );
+                ModCacheManager.ComputeChangedItems(identifier, items, manip );
                 AddItems( mod );
             }
         }

@@ -19,6 +19,7 @@ using Penumbra.Collections;
 using Penumbra.Import;
 using Penumbra.Import.Structs;
 using Penumbra.Mods;
+using Penumbra.Mods.Manager;
 using Penumbra.Services;
 using Penumbra.UI.Classes;
 using Penumbra.Util;
@@ -27,15 +28,16 @@ namespace Penumbra.UI.ModsTab;
 
 public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModFileSystemSelector.ModState>
 {
-    private readonly CommunicatorService   _communicator;
-    private readonly ChatService           _chat;
-    private readonly Configuration         _config;
-    private readonly FileDialogService     _fileDialog;
-    private readonly ModManager           _modManager;
-    private readonly CollectionManager _collectionManager;
-    private readonly TutorialService       _tutorial;
-    private readonly ModEditor             _modEditor;
-    private Queue<string> _modUnpackQueue = new Queue<string>();
+    private readonly CommunicatorService _communicator;
+    private readonly ChatService         _chat;
+    private readonly Configuration       _config;
+    private readonly FileDialogService   _fileDialog;
+    private readonly ModManager          _modManager;
+    private readonly ModCacheManager     _modCaches;
+    private readonly CollectionManager   _collectionManager;
+    private readonly TutorialService     _tutorial;
+    private readonly ModEditor           _modEditor;
+    private Queue<string>                _modUnpackQueue = new Queue<string>();
 
     private TexToolsImporter? _import;
     public  ModSettings       SelectedSettings          { get; private set; } = ModSettings.Empty;
@@ -45,7 +47,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
 
     public ModFileSystemSelector(CommunicatorService communicator, ModFileSystem fileSystem, ModManager modManager,
         CollectionManager collectionManager, Configuration config, TutorialService tutorial, FileDialogService fileDialog, ChatService chat,
-        ModEditor modEditor)
+        ModEditor modEditor, ModCacheManager modCaches)
         : base(fileSystem, DalamudServices.KeyState, HandleException)
     {
         _communicator      = communicator;
@@ -56,6 +58,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         _fileDialog        = fileDialog;
         _chat              = chat;
         _modEditor         = modEditor;
+        _modCaches         = modCaches;
 
         // @formatter:off
         SubscribeRightClickFolder(EnableDescendants, 10);
@@ -84,8 +87,8 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         _collectionManager.Current.ModSettingChanged  += OnSettingChange;
         _collectionManager.Current.InheritanceChanged += OnInheritanceChange;
         _communicator.ModDataChanged.Event            += OnModDataChange;
-        _modManager.ModDiscoveryStarted               += StoreCurrentSelection;
-        _modManager.ModDiscoveryFinished              += RestoreLastSelection;
+        _communicator.ModDiscoveryStarted.Event       += StoreCurrentSelection;
+        _communicator.ModDiscoveryFinished.Event      += RestoreLastSelection;
         ExternalModImporter.ModFileSystemSelectorInstance = this;
         OnCollectionChange(CollectionType.Current, null, _collectionManager.Current, "");
     }
@@ -93,8 +96,8 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
     public override void Dispose()
     {
         base.Dispose();
-        _modManager.ModDiscoveryStarted               -= StoreCurrentSelection;
-        _modManager.ModDiscoveryFinished              -= RestoreLastSelection;
+        _communicator.ModDiscoveryStarted.Event       -= StoreCurrentSelection;
+        _communicator.ModDiscoveryFinished.Event      -= RestoreLastSelection;
         _communicator.ModDataChanged.Event            -= OnModDataChange;
         _collectionManager.Current.ModSettingChanged  -= OnSettingChange;
         _collectionManager.Current.InheritanceChanged -= OnInheritanceChange;
@@ -132,9 +135,9 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         if (ImGuiUtil.OpenNameField("Create New Mod", ref _newModName))
             try
             {
-                var newDir = Mod.Creator.CreateModFolder(Penumbra.ModManager.BasePath, _newModName);
+                var newDir = ModCreator.CreateModFolder(Penumbra.ModManager.BasePath, _newModName);
                 _modManager.DataEditor.CreateMeta(newDir, _newModName, Penumbra.Config.DefaultModAuthor, string.Empty, "1.0", string.Empty);
-                Mod.Creator.CreateDefaultFiles(newDir);
+                ModCreator.CreateDefaultFiles(newDir);
                 _modManager.AddMod(newDir);
                 _newModName = string.Empty;
             }
@@ -290,8 +293,8 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         var size    = new Vector2(width * 2, height);
         ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, Vector2.One / 2);
         ImGui.SetNextWindowSize(size);
-        var infoPopupId = ImGui.GetID("Import Status");
-        using var popup = ImRaii.Popup("Import Status", ImGuiWindowFlags.Modal);
+        var       infoPopupId = ImGui.GetID("Import Status");
+        using var popup       = ImRaii.Popup("Import Status", ImGuiWindowFlags.Modal);
         if (_import == null || !popup.Success)
             return;
 
@@ -352,7 +355,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
 
         if (ImGuiUtil.DrawDisabledButton(FontAwesomeIcon.Trash.ToIconString(), size, tt, SelectedLeaf == null || !keys, true)
          && Selected != null)
-            _modManager.DeleteMod(Selected.Index);
+            _modManager.DeleteMod(Selected);
     }
 
     private void AddHelpButton(Vector2 size)
@@ -368,7 +371,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
         var mods = folder.GetAllDescendants(ISortMode<Mod>.Lexicographical).OfType<ModFileSystem.Leaf>().Select(l =>
         {
             // Any mod handled here should not stay new.
-            _modManager.NewMods.Remove(l.Value);
+            _modManager.SetKnown(l.Value);
             return l.Value;
         });
 
@@ -641,8 +644,8 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
             0  => !(leaf.FullName().Contains(_modFilter.Lower, IgnoreCase) || mod.Name.Contains(_modFilter)),
             1  => !mod.Name.Contains(_modFilter),
             2  => !mod.Author.Contains(_modFilter),
-            3  => !mod.LowerChangedItemsString.Contains(_modFilter.Lower),
-            4  => !mod.AllTagsLower.Contains(_modFilter.Lower),
+            3  => !_modCaches[mod].LowerChangedItemsString.Contains(_modFilter.Lower),
+            4  => !_modCaches[mod].AllTagsLower.Contains(_modFilter.Lower),
             _  => false, // Should never happen
         };
     }
@@ -650,7 +653,7 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
     /// <summary> Only get the text color for a mod if no filters are set. </summary>
     private ColorId GetTextColor(Mod mod, ModSettings? settings, ModCollection collection)
     {
-        if (Penumbra.ModManager.NewMods.Contains(mod))
+        if (_modManager.IsNew(mod))
             return ColorId.NewMod;
 
         if (settings == null)
@@ -670,13 +673,14 @@ public sealed partial class ModFileSystemSelector : FileSystemSelector<Mod, ModF
 
     private bool CheckStateFilters(Mod mod, ModSettings? settings, ModCollection collection, ref ModState state)
     {
-        var isNew = _modManager.NewMods.Contains(mod);
+        var isNew = _modManager.IsNew(mod);
+        var cache = _modCaches[mod.Index];
         // Handle mod details.
-        if (CheckFlags(mod.TotalFileCount,     ModFilter.HasNoFiles,             ModFilter.HasFiles)
-         || CheckFlags(mod.TotalSwapCount,     ModFilter.HasNoFileSwaps,         ModFilter.HasFileSwaps)
-         || CheckFlags(mod.TotalManipulations, ModFilter.HasNoMetaManipulations, ModFilter.HasMetaManipulations)
-         || CheckFlags(mod.HasOptions ? 1 : 0, ModFilter.HasNoConfig,            ModFilter.HasConfig)
-         || CheckFlags(isNew ? 1 : 0,          ModFilter.NotNew,                 ModFilter.IsNew))
+        if (CheckFlags(cache.TotalFileCount,     ModFilter.HasNoFiles,             ModFilter.HasFiles)
+         || CheckFlags(cache.TotalSwapCount,     ModFilter.HasNoFileSwaps,         ModFilter.HasFileSwaps)
+         || CheckFlags(cache.TotalManipulations, ModFilter.HasNoMetaManipulations, ModFilter.HasMetaManipulations)
+         || CheckFlags(cache.HasOptions ? 1 : 0, ModFilter.HasNoConfig,            ModFilter.HasConfig)
+         || CheckFlags(isNew ? 1 : 0,            ModFilter.NotNew,                 ModFilter.IsNew))
             return true;
 
         // Handle Favoritism

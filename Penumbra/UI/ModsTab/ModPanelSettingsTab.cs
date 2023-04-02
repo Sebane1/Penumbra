@@ -12,6 +12,7 @@ using Penumbra.Mods;
 using Penumbra.UI.Classes;
 using Dalamud.Interface.Components;
 using Dalamud.Interface;
+using Penumbra.Mods.Manager;
 
 namespace Penumbra.UI.ModsTab;
 
@@ -125,7 +126,7 @@ public class ModPanelSettingsTab : ITab
         if (!ImGui.Checkbox("Enabled", ref enabled))
             return;
 
-        _modManager.NewMods.Remove(_selector.Selected!);
+        _modManager.SetKnown(_selector.Selected!);
         _collectionManager.Current.SetModState(_selector.Selected!.Index, enabled);
     }
 

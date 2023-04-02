@@ -14,6 +14,7 @@ using Penumbra.GameData.Files;
 using Penumbra.Import.Textures;
 using Penumbra.Interop.ResourceTree;
 using Penumbra.Mods;
+using Penumbra.Mods.Manager;
 using Penumbra.String.Classes;
 using Penumbra.UI.Classes;
 using Penumbra.Util;
@@ -24,10 +25,11 @@ public partial class ModEditWindow : Window, IDisposable
 {
     private const string WindowBaseLabel = "###SubModEdit";
 
-    private readonly ModEditor     _editor;
-    private readonly Configuration _config;
-    private readonly ItemSwapTab   _itemSwapTab;
-    private readonly DataManager   _gameData;
+    private readonly ModEditor       _editor;
+    private readonly ModCacheManager _modCaches;
+    private readonly Configuration   _config;
+    private readonly ItemSwapTab     _itemSwapTab;
+    private readonly DataManager     _gameData;
 
     private Mod?    _mod;
     private Vector2 _iconSize = Vector2.Zero;
@@ -367,7 +369,7 @@ public partial class ModEditWindow : Window, IDisposable
 
         ImGui.SameLine();
         if (ImGuiUtil.DrawDisabledButton("Refresh Data", width, "Refresh data for the current option.\nThis resets unsaved changes.", false))
-            _editor.LoadOption(_editor.GroupIdx, _editor.OptionIdx);
+            _editor.LoadMod(_editor.Mod!, _editor.GroupIdx, _editor.OptionIdx);
 
         ImGui.SameLine();
 
@@ -490,12 +492,13 @@ public partial class ModEditWindow : Window, IDisposable
     }
 
     public ModEditWindow(FileDialogService fileDialog, ItemSwapTab itemSwapTab, DataManager gameData,
-        Configuration config, ModEditor editor, ResourceTreeFactory resourceTreeFactory)
+        Configuration config, ModEditor editor, ResourceTreeFactory resourceTreeFactory, ModCacheManager modCaches)
         : base(WindowBaseLabel)
     {
         _itemSwapTab = itemSwapTab;
         _config      = config;
         _editor      = editor;
+        _modCaches   = modCaches;
         _gameData    = gameData;
         _fileDialog  = fileDialog;
         _materialTab = new FileEditor<MtrlTab>(this, gameData, config, _fileDialog, "Materials", ".mtrl",

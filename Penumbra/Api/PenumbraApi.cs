@@ -18,6 +18,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Penumbra.Api.Enums;
 using Penumbra.GameData.Actors;
 using Penumbra.Interop.ResourceLoading;
+using Penumbra.Mods.Manager;
 using Penumbra.String;
 using Penumbra.String.Classes;
 using Penumbra.Services;
@@ -56,6 +57,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         {
             if (value == null)
                 return;
+
             CheckInitialized();
             _communicator.CreatingCharacterBase.Event += new Action<nint, string, nint, nint, nint>(value);
         }
@@ -63,6 +65,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         {
             if (value == null)
                 return;
+
             CheckInitialized();
             _communicator.CreatingCharacterBase.Event -= new Action<nint, string, nint, nint, nint>(value);
         }
@@ -74,6 +77,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         {
             if (value == null)
                 return;
+
             CheckInitialized();
             _communicator.CreatedCharacterBase.Event += new Action<nint, string, nint>(value);
         }
@@ -81,6 +85,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         {
             if (value == null)
                 return;
+
             CheckInitialized();
             _communicator.CreatedCharacterBase.Event -= new Action<nint, string, nint>(value);
         }
@@ -93,10 +98,10 @@ public class PenumbraApi : IDisposable, IPenumbraApi
     private Penumbra            _penumbra;
     private Lumina.GameData?    _lumina;
 
-    private ModManager           _modManager;
+    private ModManager            _modManager;
     private ResourceLoader        _resourceLoader;
     private Configuration         _config;
-    private CollectionManager _collectionManager;
+    private CollectionManager     _collectionManager;
     private DalamudServices       _dalamud;
     private TempCollectionManager _tempCollections;
     private TempModManager        _tempMods;
@@ -108,18 +113,18 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         Configuration config, CollectionManager collectionManager, DalamudServices dalamud, TempCollectionManager tempCollections,
         TempModManager tempMods, ActorService actors, CollectionResolver collectionResolver, CutsceneService cutsceneService)
     {
-        _communicator         = communicator;
-        _penumbra             = penumbra;
-        _modManager           = modManager;
-        _resourceLoader       = resourceLoader;
-        _config               = config;
-        _collectionManager    = collectionManager;
-        _dalamud              = dalamud;
-        _tempCollections      = tempCollections;
-        _tempMods             = tempMods;
-        _actors               = actors;
-        _collectionResolver   = collectionResolver;
-        _cutsceneService = cutsceneService;
+        _communicator       = communicator;
+        _penumbra           = penumbra;
+        _modManager         = modManager;
+        _resourceLoader     = resourceLoader;
+        _config             = config;
+        _collectionManager  = collectionManager;
+        _dalamud            = dalamud;
+        _tempCollections    = tempCollections;
+        _tempMods           = tempMods;
+        _actors             = actors;
+        _collectionResolver = collectionResolver;
+        _cutsceneService    = cutsceneService;
 
         _lumina = (Lumina.GameData?)_dalamud.GameData.GetType()
             .GetField("gameData", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -129,7 +134,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
 
         _communicator.CollectionChange.Event += SubscribeToNewCollections;
         _resourceLoader.ResourceLoaded       += OnResourceLoaded;
-        _modManager.ModPathChanged           += ModPathChangeSubscriber;
+        _communicator.ModPathChanged.Event   += ModPathChangeSubscriber;
     }
 
     public unsafe void Dispose()
@@ -145,7 +150,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
 
         _resourceLoader.ResourceLoaded       -= OnResourceLoaded;
         _communicator.CollectionChange.Event -= SubscribeToNewCollections;
-        _modManager.ModPathChanged           -= ModPathChangeSubscriber;
+        _communicator.ModPathChanged.Event   -= ModPathChangeSubscriber;
         _lumina                              =  null;
         _communicator                        =  null!;
         _penumbra                            =  null!;
@@ -182,12 +187,12 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         add
         {
             CheckInitialized();
-            _modManager.ModDirectoryChanged += value;
+            _communicator.ModDirectoryChanged.Event += value;
         }
         remove
         {
             CheckInitialized();
-            _modManager.ModDirectoryChanged -= value;
+            _communicator.ModDirectoryChanged.Event -= value;
         }
     }
 
@@ -543,7 +548,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
     public unsafe (nint, string) GetDrawObjectInfo(nint drawObject)
     {
         CheckInitialized();
-        var data = _collectionResolver.IdentifyCollection((DrawObject*) drawObject, true);
+        var data = _collectionResolver.IdentifyCollection((DrawObject*)drawObject, true);
         return (data.AssociatedGameObject, data.ModCollection.Name);
     }
 
@@ -604,7 +609,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         if (!_modManager.TryGetMod(modDirectory, modName, out var mod))
             return PenumbraApiEc.ModMissing;
 
-        _modManager.ReloadMod(mod.Index);
+        _modManager.ReloadMod(mod);
         return PenumbraApiEc.Success;
     }
 
@@ -625,7 +630,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
         if (!_modManager.TryGetMod(modDirectory, modName, out var mod))
             return PenumbraApiEc.NothingChanged;
 
-        _modManager.DeleteMod(mod.Index);
+        _modManager.DeleteMod(mod);
         return PenumbraApiEc.Success;
     }
 
@@ -835,7 +840,7 @@ public class PenumbraApi : IDisposable, IPenumbraApi
     public PenumbraApiEc CreateNamedTemporaryCollection(string name)
     {
         CheckInitialized();
-        if (name.Length == 0 || Mod.Creator.ReplaceBadXivSymbols(name) != name)
+        if (name.Length == 0 || ModCreator.ReplaceBadXivSymbols(name) != name)
             return PenumbraApiEc.InvalidArgument;
 
         return _tempCollections.CreateTemporaryCollection(name).Length > 0

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Penumbra.Mods.Manager;
 using Penumbra.String.Classes;
 
 namespace Penumbra.Mods;
@@ -36,13 +37,13 @@ public class ModFileEditor
 
         _modManager.OptionEditor.OptionSetFiles(mod, option.GroupIdx, option.OptionIdx, dict);
         _files.UpdatePaths(mod, option);
-
+        Changes = false;
         return num;
     }
 
     public void Revert(Mod mod, ISubMod option)
     {
-        _files.UpdatePaths(mod, option);
+        _files.UpdateAll(mod, option);
         Changes = false;
     }
 
@@ -125,10 +126,15 @@ public class ModFileEditor
     {
         foreach (var file in files)
         {
-            foreach (var (_, path) in file.SubModUsage.Where(p => p.Item1 == option))
+            for (var i = 0; i < file.SubModUsage.Count; ++i)
             {
+                var (opt, path) = file.SubModUsage[i];
+                if (option != opt)
+                    continue;
+
                 _files.RemoveUsedPath(option, file, path);
                 Changes = true;
+                --i;
             }
         }
     }

@@ -16,6 +16,7 @@ using Penumbra.GameData.Enums;
 using Penumbra.GameData.Structs;
 using Penumbra.Mods;
 using Penumbra.Mods.ItemSwap;
+using Penumbra.Mods.Manager;
 using Penumbra.Services;
 using Penumbra.UI.Classes;
 
@@ -55,6 +56,7 @@ public class ItemSwapTab : IDisposable, ITab
 
         _communicator.CollectionChange.Event         += OnCollectionChange;
         _collectionManager.Current.ModSettingChanged += OnSettingChange;
+        _communicator.ModOptionChanged.Event         += OnModOptionChange;
     }
 
     /// <summary> Update the currently selected mod or its settings. </summary>
@@ -99,6 +101,7 @@ public class ItemSwapTab : IDisposable, ITab
     {
         _communicator.CollectionChange.Event         -= OnCollectionChange;
         _collectionManager.Current.ModSettingChanged -= OnSettingChange;
+        _communicator.ModOptionChanged.Event         -= OnModOptionChange;
     }
 
     private enum SwapType
@@ -266,13 +269,13 @@ public class ItemSwapTab : IDisposable, ITab
 
     private void CreateMod()
     {
-        var newDir = Mod.Creator.CreateModFolder(_modManager.BasePath, _newModName);
+        var newDir = ModCreator.CreateModFolder(_modManager.BasePath, _newModName);
         _modManager.DataEditor.CreateMeta(newDir, _newModName, _config.DefaultModAuthor, CreateDescription(), "1.0", string.Empty);
-        Mod.Creator.CreateDefaultFiles(newDir);
+        ModCreator.CreateDefaultFiles(newDir);
         _modManager.AddMod(newDir);
-        if (!_swapData.WriteMod(_modManager, _modManager.Last(),
+        if (!_swapData.WriteMod(_modManager, _modManager[^1],
                 _useFileSwaps ? ItemSwapContainer.WriteType.UseSwaps : ItemSwapContainer.WriteType.NoSwaps))
-            _modManager.DeleteMod(_modManager.Count - 1);
+            _modManager.DeleteMod(_modManager[^1]);
     }
 
     private void CreateOption()
@@ -287,7 +290,7 @@ public class ItemSwapTab : IDisposable, ITab
         try
         {
             optionFolderName =
-                Mod.Creator.NewSubFolderName(new DirectoryInfo(Path.Combine(_mod.ModPath.FullName, _selectedGroup?.Name ?? _newGroupName)),
+                ModCreator.NewSubFolderName(new DirectoryInfo(Path.Combine(_mod.ModPath.FullName, _selectedGroup?.Name ?? _newGroupName)),
                     _newOptionName);
             if (optionFolderName?.Exists == true)
                 throw new Exception($"The folder {optionFolderName.FullName} for the option already exists.");
@@ -750,6 +753,14 @@ public class ItemSwapTab : IDisposable, ITab
         if (modIdx != _mod?.Index)
             return;
 
+        _swapData.LoadMod(_mod, _modSettings);
+        _dirty = true;
+    }
+
+    private void OnModOptionChange(ModOptionChangeType type, Mod mod, int a, int b, int c)
+    {
+        if (type is ModOptionChangeType.PrepareChange || mod != _mod)
+            return;
         _swapData.LoadMod(_mod, _modSettings);
         _dirty = true;
     }

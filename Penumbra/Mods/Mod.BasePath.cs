@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Penumbra.Mods.Manager;
 
 namespace Penumbra.Mods;
 
@@ -76,8 +77,6 @@ public partial class Mod
             IncorporateAllMetaChanges(true);
         }
 
-        ComputeChangedItems();
-        SetCounts();
         return true;
     }
 

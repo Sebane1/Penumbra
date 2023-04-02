@@ -20,6 +20,7 @@ using Penumbra.UI.Tabs;
 using Penumbra.Util;
 using CharacterUtility = Penumbra.Interop.Services.CharacterUtility;
 using ModFileSystemSelector = Penumbra.UI.ModsTab.ModFileSystemSelector;
+using Penumbra.Mods.Manager;
 
 namespace Penumbra;
 
@@ -94,7 +95,8 @@ public class PenumbraNew
             .AddSingleton<ModOptionEditor>()
             .AddSingleton<ModManager>()
             .AddSingleton<ExportManager>()
-            .AddSingleton<ModFileSystem>();
+            .AddSingleton<ModFileSystem>()
+            .AddSingleton<ModCacheManager>();
 
         // Add Resource services
         services.AddSingleton<ResourceLoader>()

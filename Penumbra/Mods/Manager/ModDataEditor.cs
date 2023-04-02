@@ -7,26 +7,42 @@ using OtterGui.Classes;
 using Penumbra.Services;
 using Penumbra.Util;
 
-namespace Penumbra.Mods;
+namespace Penumbra.Mods.Manager;
+
+[Flags]
+public enum ModDataChangeType : ushort
+{
+    None        = 0x0000,
+    Name        = 0x0001,
+    Author      = 0x0002,
+    Description = 0x0004,
+    Version     = 0x0008,
+    Website     = 0x0010,
+    Deletion    = 0x0020,
+    Migration   = 0x0040,
+    ModTags     = 0x0080,
+    ImportDate  = 0x0100,
+    Favorite    = 0x0200,
+    LocalTags   = 0x0400,
+    Note        = 0x0800,
+}
 
 public class ModDataEditor
 {
-    private readonly FilenameService     _filenameService;
     private readonly SaveService         _saveService;
     private readonly CommunicatorService _communicatorService;
 
-    public ModDataEditor(FilenameService filenameService, SaveService saveService, CommunicatorService communicatorService)
+    public ModDataEditor(SaveService saveService, CommunicatorService communicatorService)
     {
-        _filenameService     = filenameService;
         _saveService         = saveService;
         _communicatorService = communicatorService;
     }
 
     public string MetaFile(Mod mod)
-        => _filenameService.ModMetaPath(mod);
+        => _saveService.FileNames.ModMetaPath(mod);
 
     public string DataFile(Mod mod)
-        => _filenameService.LocalDataFile(mod);
+        => _saveService.FileNames.LocalDataFile(mod);
 
     /// <summary> Create the file containing the meta information about a mod from scratch. </summary>
     public void CreateMeta(DirectoryInfo directory, string? name, string? author, string? description, string? version,
@@ -38,12 +54,12 @@ public class ModDataEditor
         mod.Description = description ?? mod.Description;
         mod.Version     = version ?? mod.Version;
         mod.Website     = website ?? mod.Website;
-        _saveService.ImmediateSave(new Mod.ModMeta(mod));
+        _saveService.ImmediateSave(new ModMeta(mod));
     }
 
     public ModDataChangeType LoadLocalData(Mod mod)
     {
-        var dataFile = _filenameService.LocalDataFile(mod);
+        var dataFile = _saveService.FileNames.LocalDataFile(mod);
 
         var importDate = 0L;
         var localTags  = Enumerable.Empty<string>();
@@ -80,7 +96,7 @@ public class ModDataEditor
             changes        |= ModDataChangeType.ImportDate;
         }
 
-        changes |= mod.UpdateTags(null, localTags);
+        changes |= ModLocalData.UpdateTags(mod, null, localTags);
 
         if (mod.Favorite != favorite)
         {
@@ -95,14 +111,14 @@ public class ModDataEditor
         }
 
         if (save)
-            _saveService.QueueSave(new Mod.ModData(mod));
+            _saveService.QueueSave(new ModLocalData(mod));
 
         return changes;
     }
 
     public ModDataChangeType LoadMeta(Mod mod)
     {
-        var metaFile = _filenameService.ModMetaPath(mod);
+        var metaFile = _saveService.FileNames.ModMetaPath(mod);
         if (!File.Exists(metaFile))
         {
             Penumbra.Log.Debug($"No mod meta found for {mod.ModPath.Name}.");
@@ -119,7 +135,7 @@ public class ModDataEditor
             var newDescription = json[nameof(Mod.Description)]?.Value<string>() ?? string.Empty;
             var newVersion     = json[nameof(Mod.Version)]?.Value<string>() ?? string.Empty;
             var newWebsite     = json[nameof(Mod.Website)]?.Value<string>() ?? string.Empty;
-            var newFileVersion = json[nameof(Mod.ModMeta.FileVersion)]?.Value<uint>() ?? 0;
+            var newFileVersion = json[nameof(ModMeta.FileVersion)]?.Value<uint>() ?? 0;
             var importDate     = json[nameof(Mod.ImportDate)]?.Value<long>();
             var modTags        = json[nameof(Mod.ModTags)]?.Values<string>().OfType<string>();
 
@@ -154,14 +170,12 @@ public class ModDataEditor
                 mod.Website =  newWebsite;
             }
 
-            if (newFileVersion != Mod.ModMeta.FileVersion)
-            {
-                if (Mod.Migration.Migrate(mod, json, ref newFileVersion))
+            if (newFileVersion != ModMeta.FileVersion)
+                if (ModMigration.Migrate(_saveService, mod, json, ref newFileVersion))
                 {
                     changes |= ModDataChangeType.Migration;
-                    _saveService.ImmediateSave(new Mod.ModMeta(mod));
+                    _saveService.ImmediateSave(new ModMeta(mod));
                 }
-            }
 
             if (importDate != null && mod.ImportDate != importDate.Value)
             {
@@ -169,7 +183,7 @@ public class ModDataEditor
                 changes        |= ModDataChangeType.ImportDate;
             }
 
-            changes |= mod.UpdateTags(modTags, null);
+            changes |= ModLocalData.UpdateTags(mod, modTags, null);
 
             return changes;
         }
@@ -187,7 +201,7 @@ public class ModDataEditor
 
         var oldName = mod.Name;
         mod.Name = newName;
-        _saveService.QueueSave(new Mod.ModMeta(mod));
+        _saveService.QueueSave(new ModMeta(mod));
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Name, mod, oldName.Text);
     }
 
@@ -197,7 +211,7 @@ public class ModDataEditor
             return;
 
         mod.Author = newAuthor;
-        _saveService.QueueSave(new Mod.ModMeta(mod));
+        _saveService.QueueSave(new ModMeta(mod));
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Author, mod, null);
     }
 
@@ -207,7 +221,7 @@ public class ModDataEditor
             return;
 
         mod.Description = newDescription;
-        _saveService.QueueSave(new Mod.ModMeta(mod));
+        _saveService.QueueSave(new ModMeta(mod));
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Description, mod, null);
     }
 
@@ -217,7 +231,7 @@ public class ModDataEditor
             return;
 
         mod.Version = newVersion;
-        _saveService.QueueSave(new Mod.ModMeta(mod));
+        _saveService.QueueSave(new ModMeta(mod));
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Version, mod, null);
     }
 
@@ -227,7 +241,7 @@ public class ModDataEditor
             return;
 
         mod.Website = newWebsite;
-        _saveService.QueueSave(new Mod.ModMeta(mod));
+        _saveService.QueueSave(new ModMeta(mod));
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Website, mod, null);
     }
 
@@ -243,7 +257,7 @@ public class ModDataEditor
             return;
 
         mod.Favorite = state;
-        _saveService.QueueSave(new Mod.ModData(mod));
+        _saveService.QueueSave(new ModLocalData(mod));
         ;
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Favorite, mod, null);
     }
@@ -254,7 +268,7 @@ public class ModDataEditor
             return;
 
         mod.Note = newNote;
-        _saveService.QueueSave(new Mod.ModData(mod));
+        _saveService.QueueSave(new ModLocalData(mod));
         ;
         _communicatorService.ModDataChanged.Invoke(ModDataChangeType.Favorite, mod, null);
     }
@@ -269,20 +283,20 @@ public class ModDataEditor
         ModDataChangeType flags = 0;
         if (tagIdx == which.Count)
         {
-            flags = mod.UpdateTags(local ? null : which.Append(newTag), local ? which.Append(newTag) : null);
+            flags = ModLocalData.UpdateTags(mod, local ? null : which.Append(newTag), local ? which.Append(newTag) : null);
         }
         else
         {
             var tmp = which.ToArray();
             tmp[tagIdx] = newTag;
-            flags       = mod.UpdateTags(local ? null : tmp, local ? tmp : null);
+            flags       = ModLocalData.UpdateTags(mod, local ? null : tmp, local ? tmp : null);
         }
 
         if (flags.HasFlag(ModDataChangeType.ModTags))
-            _saveService.QueueSave(new Mod.ModMeta(mod));
+            _saveService.QueueSave(new ModMeta(mod));
 
         if (flags.HasFlag(ModDataChangeType.LocalTags))
-            _saveService.QueueSave(new Mod.ModData(mod));
+            _saveService.QueueSave(new ModLocalData(mod));
 
         if (flags != 0)
             _communicatorService.ModDataChanged.Invoke(flags, mod, null);
@@ -290,8 +304,8 @@ public class ModDataEditor
 
     public void MoveDataFile(DirectoryInfo oldMod, DirectoryInfo newMod)
     {
-        var oldFile = _filenameService.LocalDataFile(oldMod.Name);
-        var newFile = _filenameService.LocalDataFile(newMod.Name);
+        var oldFile = _saveService.FileNames.LocalDataFile(oldMod.Name);
+        var newFile = _saveService.FileNames.LocalDataFile(newMod.Name);
         if (!File.Exists(oldFile))
             return;
 

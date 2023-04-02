@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Interface.Internal.Notifications;
 using OtterGui;
+using Penumbra.Mods.Manager;
 using Penumbra.String.Classes;
 
 namespace Penumbra.Mods;
@@ -12,6 +13,7 @@ namespace Penumbra.Mods;
 public class ModNormalizer
 {
     private readonly ModManager                                     _modManager;
+    private readonly ModCacheManager                                _modCacheManager;
     private readonly List<List<Dictionary<Utf8GamePath, FullPath>>> _redirections = new();
 
     public  Mod    Mod { get; private set; } = null!;
@@ -24,8 +26,11 @@ public class ModNormalizer
     public bool Running
         => Step < TotalSteps;
 
-    public ModNormalizer(ModManager modManager)
-        => _modManager = modManager;
+    public ModNormalizer(ModManager modManager, ModCacheManager modCacheManager)
+    {
+        _modManager           = modManager;
+        _modCacheManager = modCacheManager;
+    }
 
     public void Normalize(Mod mod)
     {
@@ -36,7 +41,7 @@ public class ModNormalizer
         _normalizationDirName = Path.Combine(Mod.ModPath.FullName, "TmpNormalization");
         _oldDirName           = Path.Combine(Mod.ModPath.FullName, "TmpNormalizationOld");
         Step                  = 0;
-        TotalSteps            = mod.TotalFileCount + 5;
+        TotalSteps            = _modCacheManager[mod].TotalFileCount + 5;
 
         Task.Run(NormalizeSync);
     }
@@ -176,10 +181,10 @@ public class ModNormalizer
                 for (var i = _redirections[groupIdx + 1].Count; i < group.Count; ++i)
                     _redirections[groupIdx + 1].Add(new Dictionary<Utf8GamePath, FullPath>());
 
-                var groupDir = Mod.Creator.CreateModFolder(directory, group.Name);
+                var groupDir = ModCreator.CreateModFolder(directory, group.Name);
                 foreach (var option in group.OfType<SubMod>())
                 {
-                    var optionDir = Mod.Creator.CreateModFolder(groupDir, option.Name);
+                    var optionDir = ModCreator.CreateModFolder(groupDir, option.Name);
 
                     newDict = _redirections[groupIdx + 1][option.OptionIdx];
                     newDict.Clear();

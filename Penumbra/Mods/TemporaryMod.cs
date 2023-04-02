@@ -5,6 +5,7 @@ using System.Linq;
 using OtterGui.Classes;
 using Penumbra.Collections;
 using Penumbra.Meta.Manipulations;
+using Penumbra.Mods.Manager;
 using Penumbra.String.Classes;
 
 namespace Penumbra.Mods;
@@ -49,7 +50,7 @@ public class TemporaryMod : IMod
         DirectoryInfo? dir = null;
         try
         {
-            dir = Mod.Creator.CreateModFolder( Penumbra.ModManager.BasePath, collection.Name );
+            dir = ModCreator.CreateModFolder( Penumbra.ModManager.BasePath, collection.Name );
             var fileDir = Directory.CreateDirectory( Path.Combine( dir.FullName, "files" ) );
             modManager.DataEditor.CreateMeta( dir, collection.Name, character ?? Penumbra.Config.DefaultModAuthor,
                 $"Mod generated from temporary collection {collection.Name} for {character ?? "Unknown Character"}.", null, null );

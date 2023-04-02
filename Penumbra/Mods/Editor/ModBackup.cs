@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using Penumbra.Mods.Manager;
 
 namespace Penumbra.Mods;
 
 /// <summary> Utility to create and apply a zipped backup of a mod. </summary>
 public class ModBackup
 {
+    /// <summary> Set when reading Config and migrating from v4 to v5. </summary>
+    public static bool MigrateModBackups = false;
     public static bool CreatingBackup { get; private set; }
 
     private readonly Mod           _mod;
@@ -22,9 +26,9 @@ public class ModBackup
     }
 
     /// <summary> Migrate file extensions. </summary>
-    public static void MigrateZipToPmp(ModManager modManager)
+    public static void MigrateZipToPmp(IEnumerable<Mod> modStorage)
     {
-        foreach (var mod in modManager)
+        foreach (var mod in modStorage)
         {
             var pmpName = mod.ModPath + ".pmp";
             var zipName = mod.ModPath + ".zip";
@@ -128,7 +132,7 @@ public class ModBackup
 
             ZipFile.ExtractToDirectory(Name, _mod.ModPath.FullName);
             Penumbra.Log.Debug($"Extracted exported file {Name} to {_mod.ModPath.FullName}.");
-            modManager.ReloadMod(_mod.Index);
+            modManager.ReloadMod(_mod);
         }
         catch (Exception e)
         {
