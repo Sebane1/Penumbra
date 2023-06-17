@@ -10,3 +10,6 @@
 	path = Penumbra.String
 	url = git@github.com:Ottermandias/Penumbra.String.git
 	branch = main
+[submodule "LooseTextureCompilerCore"]
+	path = LooseTextureCompilerCore
+	url = https://github.com/Sebane1/LooseTextureCompilerCore.git
