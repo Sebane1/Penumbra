@@ -160,6 +160,7 @@ public static class ServiceManager
             .AddSingleton<ModPanelChangedItemsTab>()
             .AddSingleton<ModPanelConflictsTab>()
             .AddSingleton<ModPanelCollectionsTab>()
+            .AddSingleton<ModPanelLooseAssetCompilerTab>()
             .AddSingleton<ModPanelTabBar>()
             .AddSingleton<ModFileSystemSelector>()
             .AddSingleton<CollectionsTab>()

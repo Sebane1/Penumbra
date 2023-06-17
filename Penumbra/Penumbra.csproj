@@ -69,15 +69,17 @@
 
     <ItemGroup>
         <PackageReference Include="EmbedIO" Version="3.4.3" />
-        <PackageReference Include="SixLabors.ImageSharp" Version="2.1.2" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
         <PackageReference Include="SharpCompress" Version="0.33.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\LooseTextureCompilerCore\LooseTextureCompilerCore.csproj" />
         <ProjectReference Include="..\OtterGui\OtterGui.csproj" />
         <ProjectReference Include="..\Penumbra.GameData\Penumbra.GameData.csproj" />
         <ProjectReference Include="..\Penumbra.Api\Penumbra.Api.csproj" />
+        <ProjectReference Include="..\Penumbra.String\Penumbra.String.csproj" />
     </ItemGroup>
 
     <ItemGroup>
