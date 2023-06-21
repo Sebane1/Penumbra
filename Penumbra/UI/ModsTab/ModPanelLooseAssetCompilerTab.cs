@@ -5,8 +5,6 @@ using System.Drawing;
 using System.IO;
 using System.Numerics;
 using System.Threading.Tasks;
-using Dalamud.Interface.ImGuiFileDialog;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVLooseTextureCompiler;
 using FFXIVLooseTextureCompiler.Export;
 using FFXIVLooseTextureCompiler.PathOrganization;
@@ -14,10 +12,7 @@ using FFXIVLooseTextureCompiler.Racial;
 using ImGuiNET;
 using Newtonsoft.Json;
 using OtterGui;
-using OtterGui.Classes;
-using OtterGui.FileSystem.Selector;
 using OtterGui.Widgets;
-using Penumbra.Import.Structs;
 using Penumbra.Interop.Services;
 using Penumbra.Mods;
 using Penumbra.Mods.Manager;
@@ -244,63 +239,6 @@ public class ModPanelLooseAssetCompilerTab : ITab
         _originalMultiBoxColour = _multi.BackColor = Color.Orange;
         #endregion
     }
-
-    private void _simpleModeNormalComboBox_OnSelectedIndexChanged(object? sender, EventArgs e)
-    {
-        switch (_simpleModeNormalComboBox.SelectedIndex)
-        {
-            case 0:
-                _bakeNormals.Checked = false;
-                skinTextureSet.InvertNormalGeneration = false;
-                faceTextureSet.InvertNormalGeneration = false;
-                break;
-            case 1:
-                _bakeNormals.Checked = true;
-                skinTextureSet.InvertNormalGeneration = false;
-                faceTextureSet.InvertNormalGeneration = false;
-                break;
-            case 2:
-                _bakeNormals.Checked = true;
-                skinTextureSet.InvertNormalGeneration = true;
-                faceTextureSet.InvertNormalGeneration = true;
-                break;
-        }
-        SaveState();
-    }
-
-    private void _eyes_OnFileSelected(object? sender, EventArgs e)
-    {
-        eyesTextureSet.Normal = _eyes.FilePath;
-        AddWatcher(eyesTextureSet.Diffuse);
-        SaveState();
-    }
-
-    private void _face_OnFileSelected(object? sender, EventArgs e)
-    {
-        faceTextureSet.Diffuse = _face.FilePath;
-        AddWatcher(faceTextureSet.Diffuse);
-        SaveState();
-    }
-
-    private void _skin_OnFileSelected(object? sender, EventArgs e)
-    {
-        skinTextureSet.Diffuse = _skin.FilePath;
-        AddWatcher(skinTextureSet.Diffuse);
-        SaveState();
-    }
-
-    private void _faceTypeList_OnSelectedIndexChanged(object? sender, EventArgs e)
-    {
-        if (_isSimpleMode)
-        {
-            _facePartList.SelectedIndex = 0;
-            AddFacePaths(faceTextureSet);
-            _facePartList.SelectedIndex = 2;
-            AddEyePaths(eyesTextureSet);
-            SaveState();
-        }
-    }
-
     #region UI
     public void DrawContent()
     {
@@ -967,6 +905,62 @@ public class ModPanelLooseAssetCompilerTab : ITab
     }
     #endregion
     #region Event Callbacks
+    private void _simpleModeNormalComboBox_OnSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        switch (_simpleModeNormalComboBox.SelectedIndex)
+        {
+            case 0:
+                _bakeNormals.Checked = false;
+                skinTextureSet.InvertNormalGeneration = false;
+                faceTextureSet.InvertNormalGeneration = false;
+                break;
+            case 1:
+                _bakeNormals.Checked = true;
+                skinTextureSet.InvertNormalGeneration = false;
+                faceTextureSet.InvertNormalGeneration = false;
+                break;
+            case 2:
+                _bakeNormals.Checked = true;
+                skinTextureSet.InvertNormalGeneration = true;
+                faceTextureSet.InvertNormalGeneration = true;
+                break;
+        }
+        SaveState();
+    }
+
+    private void _eyes_OnFileSelected(object? sender, EventArgs e)
+    {
+        eyesTextureSet.Normal = _eyes.FilePath;
+        AddWatcher(eyesTextureSet.Diffuse);
+        SaveState();
+    }
+
+    private void _face_OnFileSelected(object? sender, EventArgs e)
+    {
+        faceTextureSet.Diffuse = _face.FilePath;
+        AddWatcher(faceTextureSet.Diffuse);
+        SaveState();
+    }
+
+    private void _skin_OnFileSelected(object? sender, EventArgs e)
+    {
+        skinTextureSet.Diffuse = _skin.FilePath;
+        AddWatcher(skinTextureSet.Diffuse);
+        SaveState();
+    }
+
+    private void _faceTypeList_OnSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isSimpleMode)
+        {
+            _facePartList.SelectedIndex = 0;
+            AddFacePaths(faceTextureSet);
+            _facePartList.SelectedIndex = 2;
+            AddEyePaths(eyesTextureSet);
+            SaveState();
+        }
+    }
+
     private void _baseBodyListSimplified_OnSelectedIndexChanged(object? sender, EventArgs e)
     {
         switch (_baseBodyListSimplified.SelectedIndex)
