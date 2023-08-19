@@ -16,9 +16,9 @@
         "LoadPriority": 69420,
         "LoadRequiredState": 2,
         "LoadSync": true,
-        "DownloadLinkInstall": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC2/Penumbra_LTC.zip",
-        "DownloadLinkTesting": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC2/Penumbra_LTC.zip",
-        "DownloadLinkUpdate": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC2/Penumbra_LTC.zip",
+        "DownloadLinkInstall": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC3/Penumbra_LTC3.zip",
+        "DownloadLinkTesting": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC3/Penumbra_LTC3.zip",
+        "DownloadLinkUpdate": "https://github.com/Sebane1/Penumbra/releases/download/PenumbraLTC3/Penumbra_LTC3.zip",
         "IconUrl": "https://raw.githubusercontent.com/xivdev/Penumbra/master/images/icon.png"
     }
 ]
