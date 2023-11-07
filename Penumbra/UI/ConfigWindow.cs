@@ -73,21 +73,6 @@ public sealed class ConfigWindow : Window
                   + "Please use the Launcher's Repair Game Files function to repair your client installation.");
                 DrawImcExceptions();
             }
-            else if (!_validityChecker.IsValidSourceRepo)
-            {
-                DrawProblemWindow(
-                    $"You are loading a release version of Penumbra from the repository \"{_pluginInterface.SourceRepository}\" instead of the official repository.\n"
-                  + $"Please use the official repository at {ValidityChecker.Repository} or the suite repository at {ValidityChecker.SeaOfStars}.\n\n"
-                  + "If you are developing for Penumbra and see this, you should compile your version in debug mode to avoid it.");
-            }
-            else if (_validityChecker.IsNotInstalledPenumbra)
-            {
-                DrawProblemWindow(
-                    $"You are loading a release version of Penumbra from \"{_pluginInterface.AssemblyLocation.Directory?.FullName ?? "Unknown"}\" instead of the installedPlugins directory.\n\n"
-                  + "You should not install Penumbra manually, but rather add the plugin repository under settings and then install it via the plugin installer.\n\n"
-                  + "If you do not know how to do this, please take a look at the readme in Penumbras github repository or join us in discord.\n"
-                  + "If you are developing for Penumbra and see this, you should compile your version in debug mode to avoid it.");
-            }
             else if (_validityChecker.DevPenumbraExists)
             {
                 DrawProblemWindow(
